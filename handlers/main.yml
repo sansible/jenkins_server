@@ -1,0 +1,28 @@
+---
+
+- name: reload jenkins
+  become: yes
+  service:
+    name: jenkins
+    state: reloaded
+
+- name: restart jenkins
+  become: yes
+  service:
+    name: jenkins
+    state: restarted
+
+- name: start jenkins
+  become: yes
+  service:
+    name: jenkins
+    state: started
+
+- name: stop jenkins
+  become: yes
+  service:
+    name: jenkins
+    state: stopped
+
+- name: wait for jenkins
+  include: "{{ role_path }}/tasks/wait_for_restart.yml"

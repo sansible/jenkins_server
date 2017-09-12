@@ -1,0 +1,43 @@
+---
+
+- name: Configure Jenkins admin user Groovy script
+  become: yes
+  become_user: "{{ jenkins_server.user }}"
+  template:
+    dest: "{{ jenkins_server.directories.groovy_init }}/basic-security.groovy"
+    group: "{{ jenkins_server.group }}"
+    mode: 0600
+    owner: "{{ jenkins_server.user }}"
+    src: basic-security.groovy.j2
+  register: jenkins_service_admin_user
+  when: jenkins_server.basic_auth.enabled
+
+- name: Ensure Jenkins is restarted if admin user updated
+  become: yes
+  service:
+    name: jenkins
+    state: restarted
+  when: jenkins_service_admin_user.changed
+    and jenkins_server.basic_auth.enabled
+
+- name: Wait for Jenkins to start up if admin user updated
+  include: wait_for_restart.yml
+  when: jenkins_service_admin_user.changed
+    and jenkins_server.basic_auth.enabled
+
+- name: Configure SSH agent setup in Jenkins bash profile
+  become: yes
+  template:
+    src: .bashrc.j2
+    dest: "/home/{{ jenkins_server.user }}/.bashrc"
+    group: "{{ jenkins_server.user }}"
+    owner: "{{ jenkins_server.user }}"
+    mode: 0644
+
+- name: Ensure Jenkins is running
+  become: yes
+  service:
+    name: jenkins
+    state: started
+  notify:
+    - wait for jenkins

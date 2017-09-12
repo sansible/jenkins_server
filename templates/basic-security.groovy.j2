@@ -1,0 +1,39 @@
+#!groovy
+
+/*
+If no authentication or basic auth is in use then this script will maintain
+an admin user as specfied in this roles defaults.
+*/
+
+import hudson.security.*
+import jenkins.model.*
+
+def instance = Jenkins.getInstance()
+def hudsonSecRealm = instance.getSecurityRealm()
+def hudsonPrivateSecRealm = new HudsonPrivateSecurityRealm(false)
+
+// Only fire if we are using no security or Hudson private security
+if ( hudsonSecRealm == null || hudsonSecRealm == SecurityRealm.NO_AUTHENTICATION || hudsonSecRealm.class.getName() == "hudson.security.HudsonPrivateSecurityRealm") {
+
+    if ( hudsonSecRealm == null || hudsonSecRealm == SecurityRealm.NO_AUTHENTICATION ) {
+        println "Enabled Hudson private security"
+        instance.setSecurityRealm(hudsonPrivateSecRealm)
+        def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
+        instance.setAuthorizationStrategy(strategy)
+        instance.save()
+    }
+
+    def users = hudsonPrivateSecRealm.getAllUsers()
+    users_s = users.collect { it.toString() }
+
+    if ("{{ jenkins_server.basic_auth.admin_username }}" in users_s) {
+        println "Admin user already exists - ensuring password"
+        def user = hudson.model.User.get('{{ jenkins_server.basic_auth.admin_username }}');
+        def password = hudson.security.HudsonPrivateSecurityRealm.Details.fromPlainPassword('{{ jenkins_server.basic_auth.admin_password }}')
+        user.addProperty(password)
+        user.save()
+    } else {
+        println "Creating local admin user"
+        hudsonPrivateSecRealm.createAccount('{{ jenkins_server.basic_auth.admin_username }}', '{{ jenkins_server.basic_auth.admin_password }}')
+    }
+}

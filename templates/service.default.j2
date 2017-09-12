@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+
+# defaults for Jenkins automation server
+
+# pulled in from the init script; makes things easier.
+NAME=jenkins
+
+# arguments to pass to java
+JAVA_ARGS="{{ jenkins_server.java_opts_default | join(' ') }} {{ jenkins_server.java_opts_extra | join(' ') }}"
+
+PIDFILE=/var/run/$NAME/$NAME.pid
+
+# user and group to be invoked as (default to jenkins)
+JENKINS_USER=$NAME
+JENKINS_GROUP=$NAME
+
+# location of the jenkins war file
+JENKINS_WAR=/usr/share/$NAME/$NAME.war
+
+# jenkins home location
+JENKINS_HOME={{ jenkins_server.directories.home }}
+
+# set this to false if you don't want Jenkins to run by itself
+# in this set up, you are expected to provide a servlet container
+# to host jenkins.
+RUN_STANDALONE=true
+
+# log location.  this may be a syslog facility.priority
+JENKINS_LOG={{ jenkins_server.directories.log }}/jenkins.log
+
+# OS LIMITS SETUP
+#   comment this out to observe /etc/security/limits.conf
+#   this is on by default because http://github.com/jenkinsci/jenkins/commit/2fb288474e980d0e7ff9c4a3b768874835a3e92e
+#   reported that Ubuntu's PAM configuration doesn't include pam_limits.so, and as a result the # of file
+#   descriptors are forced to 1024 regardless of /etc/security/limits.conf
+MAXOPENFILES=8192
+
+HTTP_PORT={{ jenkins_server.http_port }}
+
+# servlet context, important if you want to use apache proxying
+PREFIX=/$NAME
+
+JENKINS_ARGS="--webroot=/var/cache/$NAME/war --httpPort=$HTTP_PORT"

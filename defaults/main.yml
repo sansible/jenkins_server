@@ -1,0 +1,43 @@
+---
+
+jenkins_server:
+  basic_auth:
+    admin_password: changemechangeme
+    admin_username: admin
+    enabled: yes
+  directories:
+    groovy_init: /home/jenkins/.jenkins/init.groovy.d
+    home: /home/jenkins/.jenkins
+    log: /home/jenkins/log
+  download_base_url: https://pkg.jenkins.io/debian/binary
+  download_checksum: 31ac5296d4d42b8b3c9692fb0d3f3f4ff974d5dce178bd7653a9bd4c97c473d7
+  group: jenkins
+  hostname_local: localhost
+  http_port: 8080
+  java_opts_default:
+    - "-Djenkins.install.runSetupWizard=false"
+    - "-Xmx{{ (ansible_memtotal_mb / 2) | int }}m"
+    - "-Djava.awt.headless=true"
+  java_opts_extra: [ ]
+  java_version: 8
+  # Example plugins, state and version are optional
+  plugin_installation_timeout: 600
+  plugins:
+    - name: ansicolor
+      state: present
+      version: 0.1.2
+    - name: git
+      version: 3.5.1
+    - name: timestamper
+      version: 1.8.8
+  start_up_delay: 10
+  start_up_retry: 10
+  updates_url: https://updates.jenkins-ci.org/
+  user: jenkins
+  validate_certs: no
+  version: 2.78
+
+  dependencies:
+    java:
+      skip: no
+      version: 8

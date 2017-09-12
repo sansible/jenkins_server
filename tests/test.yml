@@ -1,0 +1,27 @@
+---
+
+- name: Test Jenkins Server role
+  hosts: all
+
+  pre_tasks:
+    - name: Update apt
+      become: yes
+      apt:
+        cache_valid_time: 1800
+        update_cache: yes
+      tags:
+        - build
+
+  roles:
+    - role: sansible.jenkins_server
+
+  post_tasks:
+    - name: Jenkins Server should already be started
+      become: yes
+      service:
+        name: jenkins
+        state: started
+      register: server_start_check
+      failed_when: server_start_check.changed
+      tags:
+        - assert
