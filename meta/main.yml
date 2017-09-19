@@ -1,0 +1,26 @@
+---
+
+galaxy_info:
+  description: "Install Jenkins Server."
+  license: MIT
+  min_ansible_version: 2.2
+  platforms:
+    - name: Ubuntu
+      versions:
+        - trusty
+  categories:
+    - development
+
+dependencies:
+  - role: sansible.users_and_groups
+    users_and_groups:
+      groups:
+        - name: "{{ jenkins_server.group }}"
+      users:
+        - name: "{{ jenkins_server.user }}"
+          group: "{{ jenkins_server.group }}"
+
+  - role: sansible.java
+    java:
+      version: "{{ jenkins_server.dependencies.java.version }}"
+    when: not jenkins_server.dependencies.java.skip

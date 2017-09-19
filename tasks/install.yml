@@ -1,0 +1,108 @@
+---
+
+- name: Ensure Jenkins dependencies are installed
+  become: yes
+  package:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - apt-transport-https
+    - curl
+
+- name: Ensure pre-requisite Jenkins directories
+  become: yes
+  file:
+    group: "{{ jenkins_server.group }}"
+    owner: "{{ jenkins_server.user }}"
+    path: "{{ item.value }}"
+    state: directory
+  with_dict: "{{ jenkins_server.directories }}"
+  register: jenkins_service_fresh_installation
+
+- name: Download Jenkins package
+  become: yes
+  get_url:
+    dest: "/usr/local/src/jenkins_{{ jenkins_server.version }}_all.deb"
+    sha256sum: "{{ jenkins_server.download_checksum }}"
+    url: "{{ jenkins_server.download_base_url }}/jenkins_{{ jenkins_server.version }}_all.deb"
+
+- name: Install Jenkins
+  become: yes
+  apt:
+    deb: "/usr/local/src/jenkins_{{ jenkins_server.version }}_all.deb"
+    state: installed
+
+- name: Setup Jenkins service defaults
+  become: yes
+  template:
+    dest: /etc/default/jenkins
+    src: service.default.j2
+  register: jenkins_service_defaults
+
+- name: Ensure Jenkins is restarted if defaults updated
+  become: yes
+  service:
+    name: jenkins
+    state: restarted
+  when: jenkins_service_defaults.changed
+
+- name: Wait for Jenkins to start up
+  include: wait_for_restart.yml
+  when: jenkins_service_defaults.changed
+
+- name: Check if Jenkins CLI downloaded from local server
+  become: yes
+  become_user: "{{ jenkins_server.user }}"
+  stat:
+    path: "{{ jenkins_server.directories.home }}/jenkins-cli.jar"
+  register: jenkins_service_cli
+
+- name: Download Jenkins CLI from local server
+  become: yes
+  become_user: "{{ jenkins_server.user }}"
+  get_url:
+    dest: "{{ jenkins_server.directories.home }}"
+    url: "http://{{ jenkins_server.hostname_local }}:{{ jenkins_server.http_port }}/jnlpJars/jenkins-cli.jar"
+  when: not jenkins_service_cli.stat.exists
+
+- name: Install Jenkins plugins for fresh installation
+  become: yes
+  become_user: "{{ jenkins_server.user }}"
+  jenkins_plugin:
+    jenkins_home: "{{ jenkins_server.directories.home }}"
+    name: "{{ item.name }}"
+    state: "{{ item.state | default('present') }}"
+    timeout: "{{ jenkins_server.plugin_installation_timeout }}"
+    updates_url: "{{ jenkins_server.updates_url }}"
+    url: "http://{{ jenkins_server.hostname_local }}:{{ jenkins_server.http_port }}"
+    validate_certs: "{{ jenkins_server.validate_certs }}"
+    version: "{{ item.version | default(omit) }}"
+  with_items: "{{ jenkins_server.plugins }}"
+  when: jenkins_server.plugins
+    and jenkins_service_fresh_installation.changed
+  notify:
+    - restart jenkins
+    - wait for jenkins
+
+- name: Install Jenkins plugins for existing installation if using basic auth
+  become: yes
+  become_user: "{{ jenkins_server.user }}"
+  jenkins_plugin:
+    jenkins_home: "{{ jenkins_server.directories.home }}"
+    name: "{{ item.name }}"
+    params:
+      url_password: "{{ jenkins_server.basic_auth.admin_password }}"
+      url_username: "{{ jenkins_server.basic_auth.admin_username }}"
+    state: "{{ item.state | default('present') }}"
+    timeout: "{{ jenkins_server.plugin_installation_timeout }}"
+    updates_url: "{{ jenkins_server.updates_url }}"
+    url: "http://{{ jenkins_server.hostname_local }}:{{ jenkins_server.http_port }}"
+    validate_certs: "{{ jenkins_server.validate_certs }}"
+    version: "{{ item.version | default(omit) }}"
+  with_items: "{{ jenkins_server.plugins }}"
+  when: jenkins_server.plugins
+    and not jenkins_service_fresh_installation.changed
+    and jenkins_server.basic_auth.enabled
+  notify:
+    - restart jenkins
+    - wait for jenkins
